@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Sep  6 00:03:16 2018
+
+@author: vickywinter
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import norm
+from scipy import stats
+import sklearn.model_selection
+
+test=pd.read_csv('/Users/vickywinter/Documents/NYC/Machine Learning Proj/Data/all/test.csv')
+train=pd.read_csv('/Users/vickywinter/Documents/NYC/Machine Learning Proj/Data/all/train.csv')
+
+test["data_type"]="test"
+train["data_type"]="train"
+
+all_data=pd.concat([train,test])
+
+sns.distplot(train['SalePrice'],fit=norm)
+# the plot is right skew
+# transfer the sales to sqrt
+sns.distplot(np.sqrt(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.sqrt(train['SalePrice']), plot=plt)
+
+#trnsfer the sales to log, much better
+sns.distplot(np.log(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log(train['SalePrice']), plot=plt)
+
+
+all_data['Bath']=all_data['FullBath']+all_data['HalfBath']*0.25
+all_data['BsmtBath']=all_data['BsmtFullBath']+all_data['BsmtHalfBath']*0.25
+all_data=all_data.drop(columns=['FullBath', 'HalfBath','BsmtFullBath','BsmtHalfBath'])
+
+
+all_data['floorNo']=np.where(all_data['2ndFlrSF']>0,2,1)
+#all_data=all_data.drop(columns=['GarageArea'])
+#all_data=all_data.drop(columns=['GarageYrBlt'])
+
+
+
+
+
+missing_value=pd.DataFrame({'miss':all_data.isnull().sum()})
+missing_value=missing_value.sort_values(by=['miss'],ascending=False)
+
+
+all_data['PoolQC']=all_data['PoolQC'].fillna("None")
+all_data['MiscFeature']=all_data['MiscFeature'].fillna("None")
+all_data['Alley']=all_data['Alley'].fillna("None")
+all_data['Fence']=all_data['Fence'].fillna("None")
+all_data['FireplaceQu']=all_data['FireplaceQu'].fillna("None")
+all_data['Fence']=all_data['Fence'].fillna("None")
+
+all_data['GarageFinish']=all_data['GarageFinish'].fillna("None")
+all_data['GarageCond']=all_data['GarageCond'].fillna("None")
+all_data['GarageYrBlt']=all_data['GarageYrBlt'].fillna(all_data['YearBuilt'])
+all_data['GarageQual']=all_data['GarageQual'].fillna("None")
+all_data['GarageType']=all_data['GarageType'].fillna("None")
+all_data['BsmtCond']=all_data['BsmtCond'].fillna("None")
+all_data['BsmtExposure']=all_data['BsmtExposure'].fillna("None")
+
+all_data['BsmtQual']=all_data['BsmtQual'].fillna("None")
+all_data['BsmtFinType2']=all_data['BsmtFinType2'].fillna("None")
+all_data['BsmtFinType1']=all_data['BsmtFinType1'].fillna("None")
+all_data['MasVnrType']=all_data['MasVnrType'].fillna("None")
+all_data['BsmtFinType2']=all_data['BsmtFinType2'].fillna("None")
+all_data['BsmtFinType1']=all_data['BsmtFinType1'].fillna("None")
+
+all_data["LotFrontage"] = all_data.groupby("Neighborhood")["LotFrontage"].transform(lambda x: x.fillna(x.median()))
+all_data["MasVnrType"] = all_data["MasVnrType"].fillna("None")
+all_data["MasVnrArea"] = all_data["MasVnrArea"].fillna(0)
+
+
+all_data['MSZoning'] = all_data['MSZoning'].fillna(all_data['MSZoning'].mode()[0])
+
+
+all_data['Utilities'] = all_data['Utilities'].fillna(all_data['Utilities'].mode()[0])
+all_data["BsmtBath"] = all_data["BsmtBath"].fillna(0)
+all_data["Functional"] = all_data["Functional"].fillna("Typ")
+all_data['KitchenQual'] = all_data['KitchenQual'].fillna(all_data['KitchenQual'].mode()[0])
+all_data['GarageCars'] = all_data['GarageCars'].fillna(all_data['GarageCars'].mode()[0])
+all_data["Exterior2nd"] = all_data["Exterior2nd"].fillna(all_data['Exterior1st'])
+
+all_data['SaleType'] = all_data['SaleType'].fillna(all_data['SaleType'].mode()[0])
+
+
+
+missing_value=pd.DataFrame({'miss':all_data.isnull().sum()})
+missing_value=missing_value.sort_values(by=['miss'],ascending=False)
+
+
+
+
+
+test=all_data[all_data["data_type"]=="test"]
+train=all_data[all_data["data_type"]=="train"]
+
+corrmat = train.corr()
+plt.subplots(figsize=(12, 9))
+sns.heatmap(corrmat, vmax=.8, square=True);
+
+k = 10 #number of variables for heatmap
+cols = corrmat.nlargest(k, 'SalePrice')['SalePrice'].index
+cm = np.corrcoef(train[cols].values.T)
+sns.set(font_scale=1.25)
+hm = sns.heatmap(cm, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, yticklabels=cols.values, xticklabels=cols.values)
+plt.show()
+
+
+#delete outlier value
+sns.set()
+cols=['SalePrice', 'OverallQual', 'GrLivArea', 'GarageCars', 'TotalBsmtSF', '1stFlrSF','Bath', 'TotRmsAbvGrd','YearBuilt','YearRemodAdd']
+sns.pairplot(train[cols], size = 2.5)
+plt.show();
+
+train = train.drop(train[(train['GrLivArea']>4000) & (train['SalePrice']<300000)].index)
+
+sns.set()
+cols=['SalePrice', 'OverallQual', 'GrLivArea', 'GarageCars', 'TotalBsmtSF', '1stFlrSF','Bath', 'TotRmsAbvGrd','YearBuilt','YearRemodAdd']
+sns.pairplot(train[cols], size = 2.5)
+plt.show();
+
+
+
+
+
+# linear regression
+
+
+sns.distplot(train['SalePrice'],fit=norm)
+# the plot is right skew
+# transfer the sales to sqrt
+sns.distplot(np.sqrt(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.sqrt(train['SalePrice']), plot=plt)
+
+#trnsfer the sales to log, much better
+sns.distplot(np.log(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log(train['SalePrice']), plot=plt)
+
+test_lin=test
+train_lin=train
+
+train_lin["SalePrice"] = np.log1p(train_lin["SalePrice"])
+all_data_lin=pd.concat([train_lin,test_lin])
+
+sns.distplot(all_data_lin['GrLivArea'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['GrLivArea'], plot=plt)
+
+all_data_lin["GrLivArea"] = np.log1p(all_data_lin["GrLivArea"])
+sns.distplot(all_data_lin['GrLivArea'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['GrLivArea'], plot=plt)
+
+
+sns.distplot(all_data_lin['TotalBsmtSF'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['TotalBsmtSF'], plot=plt)
+

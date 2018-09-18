@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Sep  8 19:48:59 2018
+
+@author: vickywinter
+"""
+
+
+
+#all_data=all_data.drop(columns=['GarageArea'])
+#all_data=all_data.drop(columns=['GarageYrBlt'])
+
+
+
+
+
+
+test=all_data[all_data["data_type"]=="test"]
+train=all_data[all_data["data_type"]=="train"]
+
+corrmat = train.corr()
+plt.subplots(figsize=(12, 9))
+sns.heatmap(corrmat, vmax=.8, square=True);
+
+
+
+
+k = 10 #number of variables for heatmap
+cols = corrmat.nlargest(k, 'SalePrice')['SalePrice'].index
+cm = np.corrcoef(train[cols].values.T)
+sns.set(font_scale=1.25)
+hm = sns.heatmap(cm, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, yticklabels=cols.values, xticklabels=cols.values)
+plt.show()
+
+
+
+#delete outlier value
+sns.set()
+cols=['SalePrice', 'OverallQual', 'GrLivArea', 'GarageCars', 'TotalBsmtSF', '1stFlrSF','Bath', 'TotRmsAbvGrd','YearBuilt','YearRemodAdd']
+sns.pairplot(train[cols], size = 2.5)
+plt.show();
+
+train = train.drop(train[(train['GrLivArea']>4000) & (train['SalePrice']<300000)].index)
+
+sns.set()
+cols=['SalePrice', 'OverallQual', 'GrLivArea', 'GarageCars', 'TotalBsmtSF', '1stFlrSF','Bath', 'TotRmsAbvGrd','YearBuilt','YearRemodAdd']
+sns.pairplot(train[cols], size = 2.5)
+plt.show();
+
+all_data=pd.concat([train,test])
+#pd.concat([NaNRatio(train,feats_object),NaNRatio(df_test,feats_object)],axis=1,sort=True)
+
+
+all_data['MSSubClass'] = all_data['MSSubClass'].apply(str)
+all_data['OverallCond'] = all_data['OverallCond'].astype(str)
+all_data['YrSold'] = all_data['YrSold'].astype(str)
+all_data['MoSold'] = all_data['MoSold'].astype(str)
+
+
+#categorical variable
+
+cols = ('FireplaceQu', 'BsmtQual', 'BsmtCond', 'GarageQual', 'GarageCond', 
+        'ExterQual', 'ExterCond','HeatingQC', 'PoolQC', 'KitchenQual', 'BsmtFinType1', 
+        'BsmtFinType2', 'Functional', 'Fence', 'BsmtExposure', 'GarageFinish', 'LandSlope',
+        'LotShape', 'PavedDrive', 'Street', 'Alley', 'CentralAir', 'MSSubClass', 'OverallCond', 
+        'YrSold', 'MoSold')
+# process columns, apply LabelEncoder to categorical features
+for c in cols:
+    lbl = LabelEncoder() 
+    lbl.fit(list(all_data[c].values)) 
+    all_data[c] = lbl.transform(list(all_data[c].values))
+
+
+
+# linear regression
+
+
+sns.distplot(train['SalePrice'],fit=norm)
+# the plot is right skew
+# transfer the sales to sqrt
+sns.distplot(np.sqrt(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.sqrt(train['SalePrice']), plot=plt)
+
+#trnsfer the sales to log, much better
+sns.distplot(np.log1p(train['SalePrice']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log1p(train['SalePrice']), plot=plt)
+
+test_lin=all_data[all_data["data_type"]=="test"]
+train_lin=all_data[all_data["data_type"]=="train"]
+
+train_lin["SalePrice"] = np.log1p(train_lin["SalePrice"])
+all_data_lin=pd.concat([train_lin,test_lin])
+
+#
+numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
+skewed=all_data_lin[numeric_feats].apply(lambda x: stats.skew(x.dropna())).sort_values(ascending=False)
+
+
+
+all_data_lin["GrLivArea"] = np.log1p(all_data_lin["GrLivArea"])
+all_data_lin["LotArea"] = np.log1p(all_data_lin["LotArea"])
+
+all_data_lin["MiscVal"] = np.log1p(all_data_lin["MiscVal"])
+all_data_lin["BsmtFinSF2"] = np.log1p(all_data_lin["BsmtFinSF2"])
+all_data_lin["EnclosedPorch"] = np.log1p(all_data_lin["EnclosedPorch"])
+all_data_lin["MasVnrArea"] = np.log1p(all_data_lin["MasVnrArea"])
+
+all_data_lin["OpenPorchSF"] = np.log1p(all_data_lin["OpenPorchSF"])
+all_data_lin["WoodDeckSF"] = np.log1p(all_data_lin["WoodDeckSF"])
+all_data_lin["1stFlrSF"] = np.log1p(all_data_lin["1stFlrSF"])
+all_data_lin["GrLivArea"] = np.log1p(all_data_lin["GrLivArea"])
+all_data_lin["WoodDeckSF"] = np.log1p(all_data_lin["WoodDeckSF"])
+all_data_lin["1stFlrSF"] = np.log1p(all_data_lin["1stFlrSF"])
+
+
+test_lin=all_data_lin[all_data_lin["data_type"]=="test"]
+train_lin=all_data_lin[all_data_lin["data_type"]=="train"]
+
+test_lin=test_lin.drop(columns=['data_type'])
+train_lin=train_lin.drop(columns=['data_type'])
+
+all_data_lin=pd.concat([train_lin,test_lin])
+
+#create dummy data
+
+preprocessing.OneHotEncoder(sparse=False).fit_transform()
+all_data_lin = pd.get_dummies(all_data_lin, dummy_na=True)
+train_lin=all_data_lin[:1458]
+test_lin=all_data_lin[1458:2917]
+#crossvalidation
+
+train_lin_ata=train_lin.drop(columns=['SalePrice'])
+x_train, x_test, y_train, y_test = train_test_split(train_lin_ata, train_lin.SalePrice,test_size=1.0/3, random_state=0)
+
+#Linear forecasting 
+
+
+taget=train_lin.SalePrice
+#LassoCV forecasting
+lassocv = LassoCV(alphas = np.logspace(-20, 1, 100))
+lassocv.fit(train_lin_ata, train_lin.SalePrice)
+lassocv_score = lassocv.score(train_lin_ata, train_lin.SalePrice)
+lassocv_alpha = lassocv.alpha_
+print(lassocv_alpha, lassocv_score)
+
+
+lasso =Lasso()
+lasso.set_params(alpha=lassocv_alpha)
+lasso.fit(train_lin_ata, train_lin.SalePrice)
+preds_lasso = np.expm1(lasso.predict(test_lin.drop(columns=['SalePrice'])))
+
+#Ridge
+Ridgecv = RidgeCV(alphas = np.logspace(-20, 1, 100))
+Ridgecv.fit(train_lin_ata, train_lin.SalePrice)
+Ridgecv_score = Ridgecv.score(train_lin_ata, train_lin.SalePrice)
+Ridgecv_alpha = Ridgecv.alpha_
+print(Ridgecv_alpha, Ridgecv_score)
+
+
+lasso =Lasso()
+lasso.set_params(alpha=lassocv_alpha)
+lasso.fit(train_lin_ata, train_lin.SalePrice)
+preds_lasso = np.expm1(lasso.predict(test_lin.drop(columns=['SalePrice'])))
+
+help(RandomForestRegressor)
+
+#random forest tree
+model=RandomForestRegressor()
+estimators = np.arange(10, 200, 10)
+scores = []
+for n in estimators:
+    model.set_params(n_estimators=n)
+    model.fit(x_train, y_train)
+    scores.append(model.score(x_test, y_test))
+    print(n,model.score(x_test,y_test))
+plt.title("Effect of n_estimators")
+plt.xlabel("n_estimator")
+plt.ylabel("score")
+plt.plot(estimators, scores)
+
+
+
+x_train, x_test, y_train, y_test = train_test_split(train_lin_ata, train_lin.SalePrice,test_size=1.0/3, random_state=0)
+
+regr = RandomForestRegressor(n_estimators = 140,random_state=0)
+edf=regr.fit(train_lin_ata, train_lin.SalePrice)
+score=regr.score(x_test,y_test)
+
+
+preds_random=np.expm1(regr.predict(test_lin.drop(columns=['SalePrice'])))
+
+
+#xboost
+
+
+xgb = xgboost.XGBRegressor(n_estimators=100, learning_rate=0.08, gamma=0, subsample=0.75,colsample_bytree=1, max_depth=7)
+traindf, testdf = train_test_split(x_train, test_size = 0.3)
+xgb.fit(x_train,y_train)
+predictions = xgb.predict(x_test)
+print(explained_variance_score(predictions,y_test))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+alphas = 10**np.linspace(10,-2,100)*0.5
+ridge = Ridge(normalize = True)
+coefs = []
+
+for a in alphas:
+    ridge.set_params(alpha = a)
+    ridge.fit(train_lin_ata, train_lin.SalePrice)
+    coefs.append(ridge.coef_)
+    
+np.shape(coefs)
+
+ax = plt.gca()
+ax.plot(alphas, coefs)
+ax.set_xscale('log')
+plt.axis('tight')
+plt.xlabel('alpha')
+plt.ylabel('weights')
+
+
+alphas = np.logspace(-20, 1, 100)
+scores = np.empty_like(alphas)
+result1=[]
+best_score=0
+for i,a in enumerate(alphas):
+    lasso =Lasso()
+    lasso.set_params(alpha=a)
+    lasso.fit(x_train, y_train)
+    scores[i] = lasso.score(x_test, y_test)
+    if scores[i]>best_score:
+        best_score=scores[i]
+        al=a
+    print(a,scores[i])
+print(al,best_score)
+    #print(a, lasso.coef_)
+    
+lassocv = LassoCV(alphas = np.logspace(-20, 1, 100))
+lassocv.fit(train_lin_ata, train_lin.SalePrice)
+lassocv_score = lassocv.score(train_lin_ata, train_lin.SalePrice)
+lassocv_alpha = lassocv.alpha_
+print(lassocv_alpha, lassocv_score)
+
+
+lassocv_alpha
+
+
+
+
+    
+
+col='BsmtFinSF1'
+
+stats.skew(np.log1p(all_data_lin[col]))
+
+sns.distplot(np.log1p(all_data_lin[col]),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log1p(all_data_lin[col]), plot=plt)
+
+
+sns.distplot(all_data_lin[col],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin[col], plot=plt)
+
+sns.distplot(np.log1p(all_data_lin[col]),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log1p(all_data_lin[col]), plot=plt)
+
+
+sns.distplot(np.log1p(all_data_lin[col]+all_data_lin[col].mean()),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log1p(all_data_lin[col]+all_data_lin[col].mean()), plot=plt)
+
+stats.skew(np.log1p(all_data_lin[col]+all_data_lin[col].mean()))
+
+np.log(10)
+
+
+
+
+sns.distplot(all_data_lin['GrLivArea'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['GrLivArea'], plot=plt)
+
+all_data_lin["GrLivArea"] = np.log1p(all_data_lin["GrLivArea"])
+sns.distplot(all_data_lin['GrLivArea'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['GrLivArea'], plot=plt)
+
+
+sns.distplot(all_data_lin['TotalBsmtSF'],fit=norm)
+fig=plt.figure()
+stats.probplot(all_data_lin['TotalBsmtSF'], plot=plt)
+
+sns.distplot(np.log(all_data_lin['TotalBsmtSF']),fit=norm)
+fig=plt.figure()
+stats.probplot(np.log(all_data_lin['TotalBsmtSF']), plot=plt)
+
